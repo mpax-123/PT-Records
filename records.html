@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Patient Management System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f2f4f8;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    h1, h2, h3 {
+      color: #333;
+    }
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    input, textarea {
+      flex: 1 1 300px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      background: #007BFF;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+
+    th, td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+      vertical-align: middle;
+    }
+
+    tr:hover {
+      background: #f9f9f9;
+    }
+
+    a.patient-name {
+      color: #007BFF;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    a.patient-name:hover {
+      text-decoration: underline;
+    }
+
+    .back-button {
+      margin-bottom: 20px;
+      display: inline-block;
+      color: #007BFF;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    ul.notes {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    ul.notes li {
+      background: #f1f3f5;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      white-space: pre-line;
+    }
+
+    .delete-btn {
+      background: #ff4d4d;
+      border: none;
+      color: white;
+      padding: 7px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .delete-btn:hover {
+      background: #cc0000;
+    }
+
+    @media (max-width: 600px) {
+      form {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Main View -->
+    <div id="mainView">
+      <h1>Patient Management System</h1>
+      <form id="addPatientForm">
+        <input type="text" id="name" placeholder="Patient Name" required />
+        <input type="number" id="age" placeholder="Age" required min="0" />
+        <textarea id="condition" placeholder="Medical Condition" required></textarea>
+        <button type="submit">Add Patient</button>
+      </form>
+
+      <h2>Patient List</h2>
+      <table id="patientTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Condition</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Patient Detail View -->
+    <div id="patientView" style="display: none;">
+      <span class="back-button" id="backBtn">← Back to list</span>
+      <h2 id="patientName"></h2>
+      <p><strong>Age:</strong> <span id="patientAge"></span></p>
+      <p><strong>Condition:</strong> <span id="patientCondition"></span></p>
+
+      <h3>Add Entry / Note</h3>
+      <form id="addEntryForm">
+        <textarea id="entryText" placeholder="Write a note..." required></textarea>
+        <button type="submit">Add Entry</button>
+      </form>
+
+      <h3>Patient Notes</h3>
+      <ul class="notes" id="notesList"></ul>
+    </div>
+  </div>
+
+  <script>
+    let patients = JSON.parse(localStorage.getItem('patients')) || [];
+    let currentPatientIndex = null;
+
+    const patientTableBody = document.querySelector('#patientTable tbody');
+    const addPatientForm = document.getElementById('addPatientForm');
+    const addEntryForm = document.getElementById('addEntryForm');
+    const entryText = document.getElementById('entryText');
+    const notesList = document.getElementById('notesList');
+
+    const mainView = document.getElementById('mainView');
+    const patientView = document.getElementById('patientView');
+    const backBtn = document.getElementById('backBtn');
+
+    function renderPatients() {
+      patientTableBody.innerHTML = '';
+      patients.forEach((patient, index) => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td><a href="#" class="patient-name" data-index="${index}">${patient.name}</a></td>
+          <td>${patient.age}</td>
+          <td>${patient.condition}</td>
+          <td><button class="delete-btn" data-index="${index}">Delete</button></td>
+        `;
+        patientTableBody.appendChild(row);
+      });
+      localStorage.setItem('patients', JSON.stringify(patients));
+    }
+
+    // Add new patient
+    addPatientForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const age = document.getElementById('age').value;
+      const condition = document.getElementById('condition').value.trim();
+
+      if (name && age && condition) {
+        patients.push({ name, age, condition, notes: [] });
+        saveAndRender();
+        addPatientForm.reset();
+      }
+    });
+
+    // Event delegation for patient name click and delete button
+    patientTableBody.addEventListener('click', e => {
+      const target = e.target;
+
+      if (target.classList.contains('patient-name')) {
+        e.preventDefault();
+        const index = target.getAttribute('data-index');
+        viewPatient(Number(index));
+      }
+
+      if (target.classList.contains('delete-btn')) {
+        const index = target.getAttribute('data-index');
+        deletePatient(Number(index));
+      }
+    });
+
+    // View patient detail
+    function viewPatient(index) {
+      currentPatientIndex = index;
+      const patient = patients[index];
+      document.getElementById('patientName').textContent = patient.name;
+      document.getElementById('patientAge').textContent = patient.age;
+      document.getElementById('patientCondition').textContent = patient.condition;
+      renderNotes();
+      mainView.style.display = 'none';
+      patientView.style.display = 'block';
+    }
+
+    // Back button handler
+    backBtn.addEventListener('click', () => {
+      goBack();
+    });
+
+    function goBack() {
+      mainView.style.display = 'block';
+      patientView.style.display = 'none';
+      currentPatientIndex = null;
+    }
+
+    // Render patient notes
+    function renderNotes() {
+      notesList.innerHTML = '';
+      if (currentPatientIndex === null) return;
+      const notes = patients[currentPatientIndex].notes;
+      notes.forEach(note => {
+        const li = document.createElement('li');
+        li.textContent = note;
+        notesList.appendChild(li);
+      });
+    }
+
+    // Add note for patient
+    addEntryForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const note = entryText.value.trim();
+      if (note && currentPatientIndex !== null) {
+        patients[currentPatientIndex].notes.push(note);
+        saveAndRender();
+        renderNotes();
+        addEntryForm.reset();
+      }
+    });
+
+    // Delete patient
+    function deletePatient(index) {
+      if (confirm(`Delete patient "${patients[index].name}"? This action cannot be undone.`)) {
+        if (currentPatientIndex === index) {
+          goBack();
+        }
+        patients.splice(index, 1);
+        saveAndRender();
+      }
+    }
+
+    function saveAndRender() {
+      localStorage.setItem('patients', JSON.stringify(patients));
+      renderPatients();
+    }
+
+    // Initial render
+    renderPatients();
+  </script>
+</body>
+</html>
