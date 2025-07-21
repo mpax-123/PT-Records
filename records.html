@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Patient Management System</title>
+  <title>Patient Management System - Prince Alex University Hospital</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -118,6 +118,21 @@
       background: #cc0000;
     }
 
+    .export-btn {
+      background: #28a745;
+      border: none;
+      color: white;
+      padding: 7px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .export-btn:hover {
+      background: #218838;
+    }
+
     @media (max-width: 600px) {
       form {
         flex-direction: column;
@@ -192,7 +207,10 @@
           <td><a href="#" class="patient-name" data-index="${index}">${patient.name}</a></td>
           <td>${patient.age}</td>
           <td>${patient.condition}</td>
-          <td><button class="delete-btn" data-index="${index}">Delete</button></td>
+          <td>
+            <button class="delete-btn" data-index="${index}">Delete</button>
+            <button class="export-btn" data-index="${index}">Save & Export</button>
+          </td>
         `;
         patientTableBody.appendChild(row);
       });
@@ -213,7 +231,7 @@
       }
     });
 
-    // Event delegation for patient name click and delete button
+    // Event delegation for patient name click, delete button, and export button
     patientTableBody.addEventListener('click', e => {
       const target = e.target;
 
@@ -226,6 +244,11 @@
       if (target.classList.contains('delete-btn')) {
         const index = target.getAttribute('data-index');
         deletePatient(Number(index));
+      }
+
+      if (target.classList.contains('export-btn')) {
+        const index = target.getAttribute('data-index');
+        saveAndExportPatient(Number(index));
       }
     });
 
@@ -285,6 +308,33 @@
         patients.splice(index, 1);
         saveAndRender();
       }
+    }
+
+    // Save and export patient to Discord webhook
+    function saveAndExportPatient(index) {
+      const patient = patients[index];
+      const patientData = {
+        content: `New Patient Record:
+        - **Name**: ${patient.name}
+        - **Age**: ${patient.age}
+        - **Condition**: ${patient.condition}
+        - **Notes**: ${patient.notes.join('\n')}`
+      };
+
+      fetch('https://discord.com/api/webhooks/1396950794959589426/gLcOXOw22RnywXltDJCLCwtFoKYdlNRqdd2MdemcFHo-PHYdlssLhg7bulA9aTAUZROd', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patientData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert('Patient data exported to Discord!');
+      })
+      .catch(error => {
+        console.error('Error exporting data:', error);
+      });
     }
 
     function saveAndRender() {
