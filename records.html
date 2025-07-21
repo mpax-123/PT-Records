@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Patient Management System - Prince Alex University Hospital</title>
+  <title>Patient Management System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -311,34 +311,41 @@
     }
 
     // Save and export patient to Discord webhook
-function saveAndExportPatient(index) {
-  const patient = patients[index];
-  const patientData = {
-    content: `New Patient Record:
+    function saveAndExportPatient(index) {
+      const patient = patients[index];
+      const patientData = {
+        content: `New Patient Record:
 **Name**: ${patient.name}
 **Age**: ${patient.age}
 **Condition**: ${patient.condition}
 
 **Notes**: 
 ${patient.notes.length > 0 ? patient.notes.join('\n') : 'No notes available.'}`
-  };
+      };
 
-  fetch('https://discord.com/api/webhooks/1396950794959589426/gLcOXOw22RnywXltDJCLCwtFoKYdlNRqdd2MdemcFHo-PHYdlssLhg7bulA9aTAUZROd', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(patientData)
-  })
-  .then(response => response.json())
-  .then(data => {
-    alert('Patient data exported to Discord!');
-  })
-  .catch(error => {
-    console.error('Error exporting data:', error);
-  });
-}
+      fetch('https://discord.com/api/webhooks/1396950794959589426/gLcOXOw22RnywXltDJCLCwtFoKYdlNRqdd2MdemcFHo-PHYdlssLhg7bulA9aTAUZROd', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patientData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert('Patient data exported to Discord!');
+      })
+      .catch(error => {
+        console.error('Error exporting data:', error);
+      });
+    }
 
+    function saveAndRender() {
+      localStorage.setItem('patients', JSON.stringify(patients));
+      renderPatients();
+    }
+
+    // Initial render
+    renderPatients();
   </script>
 </body>
 </html>
