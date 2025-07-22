@@ -2,290 +2,515 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>NHS EPR System</title>
+  <title>NHS Patient Records Management System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#f0f4f5; color:#0b0c0c; padding:20px; }
-    .container { max-width:960px; margin:0 auto 40px; background:white; padding:30px; border-left:8px solid #005eb8; }
-    h1,h2,h3{margin-top:0;}
-    label{display:block; font-weight:bold; margin-bottom:4px;}
-    input,textarea,select{width:100%; padding:10px; font-size:16px; border:1px solid #0b0c0c; border-radius:4px; box-sizing:border-box; margin-bottom:10px;}
-    button{background:#005eb8;color:#fff;border:none;padding:10px 20px;font-size:16px;cursor:pointer;border-radius:4px;}
-    button:hover{background:#003f7d;}
-    table{width:100%; border-collapse:collapse; margin-bottom:20px;}
-    th,td{padding:12px;text-align:left;border-bottom:1px solid #dfe3e6;}
-    tr:hover{background:#f5f7fa;}
-    a.patient-name{color:#005eb8;text-decoration:none;}
-    a.patient-name:hover{text-decoration:underline;}
-    .view{display:none;}
-    .active{display:block;}
-    .back-button{color:#005eb8;cursor:pointer;display:inline-block;margin-bottom:20px;}
-    .admin-panel{margin-top:30px;}
+    /* NHS style color palette */
+    :root {
+      --nhs-blue: #005eb8;
+      --nhs-light-blue: #0072ce;
+      --nhs-dark-blue: #003087;
+      --nhs-grey-light: #f4f7f9;
+      --nhs-grey-medium: #7a869a;
+      --nhs-grey-dark: #2a2a2a;
+      --nhs-green: #007a3d;
+      --nhs-red: #d5281b;
+      --nhs-font: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--nhs-font);
+      background: var(--nhs-grey-light);
+      color: var(--nhs-grey-dark);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: auto;
+      background: white;
+      padding: 30px 40px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h1, h2, h3 {
+      font-weight: 600;
+      color: var(--nhs-blue);
+      margin-bottom: 20px;
+    }
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    textarea {
+      flex: 1 1 300px;
+      padding: 12px 14px;
+      font-size: 16px;
+      border: 2px solid var(--nhs-grey-medium);
+      border-radius: 4px;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      border-color: var(--nhs-blue);
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: var(--nhs-font);
+    }
+
+    button {
+      background: var(--nhs-blue);
+      color: white;
+      padding: 12px 26px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+      flex-shrink: 0;
+      align-self: center;
+    }
+
+    button:hover {
+      background: var(--nhs-dark-blue);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      font-size: 15px;
+      color: var(--nhs-grey-dark);
+    }
+
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--nhs-grey-medium);
+      vertical-align: middle;
+    }
+
+    th {
+      background: var(--nhs-grey-light);
+      font-weight: 600;
+      color: var(--nhs-blue);
+    }
+
+    tr:hover {
+      background: #e6f0ff;
+    }
+
+    a.patient-name {
+      color: var(--nhs-blue);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    a.patient-name:hover {
+      text-decoration: underline;
+    }
+
+    .back-button {
+      margin-bottom: 20px;
+      display: inline-block;
+      color: var(--nhs-blue);
+      cursor: pointer;
+      user-select: none;
+      font-weight: 600;
+    }
+
+    ul.notes {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    ul.notes li {
+      background: var(--nhs-grey-light);
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      white-space: pre-line;
+      color: var(--nhs-grey-dark);
+      font-size: 15px;
+    }
+
+    .delete-btn {
+      background: var(--nhs-red);
+      border: none;
+      color: white;
+      padding: 7px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+      margin-right: 8px;
+    }
+
+    .delete-btn:hover {
+      background: #a71d15;
+    }
+
+    .export-btn {
+      background: var(--nhs-green);
+      border: none;
+      color: white;
+      padding: 7px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .export-btn:hover {
+      background: #00542a;
+    }
+
+    /* User management table */
+    #userTable input[type="text"] {
+      border: 1px solid var(--nhs-grey-medium);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 14px;
+    }
+
+    #userTable button {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin-right: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      form {
+        flex-direction: column;
+      }
+
+      input, textarea, button {
+        flex: 1 1 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container view active" id="loginView">
-    <h1>NHS Patient Records – Sign In</h1>
-    <label for="loginUsername">Username</label>
-    <input id="loginUsername" type="text" required />
-    <label for="loginPassword">Password</label>
-    <input id="loginPassword" type="password" required />
-    <button id="loginBtn">Sign in</button>
+
+  <!-- Login View -->
+  <div class="container" id="loginView">
+    <h1>NHS Login</h1>
+    <form id="loginForm">
+      <input type="text" id="loginUsername" placeholder="Username" required autocomplete="off" />
+      <input type="password" id="loginPassword" placeholder="Password" required autocomplete="off" />
+      <button type="submit">Login</button>
+    </form>
   </div>
 
-  <div class="container view" id="mainView">
-    <button id="logoutBtn" style="float:right;background:#c82333;">Logout</button>
-    <h1>Patient Records</h1>
-
-    <h2>Add New Patient</h2>
-    <label for="name">Name</label><input id="name" type="text" required />
-    <label for="age">Age</label><input id="age" type="number" min="0" required />
-    <label for="gender">Gender</label><select id="gender" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
-    <label for="contact">Contact (phone/email)</label><input id="contact" type="text" required />
-    <label for="condition">Medical Condition</label><textarea id="condition" rows="2" required></textarea>
-    <button id="addPatientBtn">Add Patient</button>
+  <!-- Main Application View -->
+  <div class="container" id="mainView" style="display: none;">
+    <h1>NHS Patient Records Management System</h1>
+    <form id="addPatientForm" aria-label="Add new patient form">
+      <input type="text" id="name" placeholder="Patient Name" required autocomplete="off" />
+      <input type="number" id="age" placeholder="Age" required min="0" />
+      <textarea id="condition" placeholder="Medical Condition" required></textarea>
+      <button type="submit">Add Patient</button>
+    </form>
 
     <h2>Patient List</h2>
-    <table id="patientTable">
-      <thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Contact</th><th>Condition</th><th>Actions</th></tr></thead>
+    <table id="patientTable" aria-label="Patient list table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Condition</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
       <tbody></tbody>
     </table>
-
-    <div class="admin-panel" id="adminPanel">
-      <h2>User Management (Admin)</h2>
-      <label for="newUsername">New Username</label><input id="newUsername" type="text" required />
-      <label for="newPassword">New Password</label><input id="newPassword" type="password" required />
-      <button id="addUserBtn">Add User</button>
-
-      <h3>Existing Users</h3>
-      <table id="userTable"><thead><tr><th>Username</th><th>Role</th><th>Actions</th></tr></thead><tbody></tbody></table>
-    </div>
   </div>
 
-  <div class="container view" id="patientView">
-    <span class="back-button" id="backBtn">← Back to list</span>
-    <h1 id="patientName"></h1>
+  <!-- Patient Detail View -->
+  <div class="container" id="patientView" style="display: none;">
+    <span class="back-button" id="backBtn" role="button" tabindex="0" aria-label="Back to patient list">← Back to list</span>
+    <h2 id="patientName"></h2>
     <p><strong>Age:</strong> <span id="patientAge"></span></p>
-    <p><strong>Gender:</strong> <span id="patientGender"></span></p>
-    <p><strong>Contact:</strong> <span id="patientContact"></span></p>
     <p><strong>Condition:</strong> <span id="patientCondition"></span></p>
 
-    <h2>Add Note</h2>
-    <textarea id="entryText" rows="4" required></textarea>
-    <button id="addEntryBtn">Save Note</button>
+    <h3>Add Entry / Note</h3>
+    <form id="addEntryForm" aria-label="Add patient note form">
+      <textarea id="entryText" placeholder="Write a note..." required></textarea>
+      <button type="submit">Add Entry</button>
+    </form>
 
-    <h2>Notes</h2>
-    <ul id="notesList" style="padding-left:0;"></ul>
+    <h3>Patient Notes</h3>
+    <ul class="notes" id="notesList" aria-label="List of patient notes"></ul>
+  </div>
+
+  <!-- Admin User Management -->
+  <div class="container" id="adminPanel" style="display: none;">
+    <h2>User Management (Admin Only)</h2>
+    <form id="addUserForm" aria-label="Add new user form">
+      <input type="text" id="newUsername" placeholder="New Username" required autocomplete="off" />
+      <input type="password" id="newPassword" placeholder="New Password" required autocomplete="off" />
+      <button type="submit">Add User</button>
+    </form>
+
+    <table id="userTable" aria-label="User management table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
   <script>
-    // Users storage: password stored in plain text (NOT recommended in real apps)
     let users = JSON.parse(localStorage.getItem('users')) || [];
-
-    // Initialize admin user if none exist
-    if(users.length === 0){
-      users = [{ username: 'CF', password: 'HiLLonden1!!', isAdmin: true }];
+    // Ensure admin user exists
+    if (!users.find(u => u.username === 'CF')) {
+      users.push({ username: 'CF', password: 'HiLLonden1!!', isAdmin: true });
       localStorage.setItem('users', JSON.stringify(users));
     }
 
     let currentUser = null;
     let patients = JSON.parse(localStorage.getItem('patients')) || [];
+    let currentPatientIndex = null;
 
-    const views = {
-      login: document.getElementById('loginView'),
-      main: document.getElementById('mainView'),
-      patient: document.getElementById('patientView')
-    };
+    const loginView = document.getElementById('loginView');
+    const mainView = document.getElementById('mainView');
+    const patientView = document.getElementById('patientView');
+    const adminPanel = document.getElementById('adminPanel');
+    const patientTableBody = document.querySelector('#patientTable tbody');
+    const addPatientForm = document.getElementById('addPatientForm');
+    const addEntryForm = document.getElementById('addEntryForm');
+    const entryText = document.getElementById('entryText');
+    const notesList = document.getElementById('notesList');
+    const backBtn = document.getElementById('backBtn');
+    const addUserForm = document.getElementById('addUserForm');
 
-    function show(view){
-      Object.values(views).forEach(v => v.classList.remove('active'));
-      view.classList.add('active');
-    }
-
-    document.getElementById('loginBtn').onclick = () => {
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
       const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value;
       const user = users.find(u => u.username === username && u.password === password);
-      if(user){
+
+      if (user) {
         currentUser = user;
-        renderMain();
-        show(views.main);
+        loginView.style.display = 'none';
+        mainView.style.display = 'block';
+        if (user.isAdmin) {
+          adminPanel.style.display = 'block';
+          renderUsers();
+        } else {
+          adminPanel.style.display = 'none';
+        }
+        renderPatients();
       } else {
-        alert('Invalid username or password');
+        alert("Invalid username or password.");
       }
-    };
+    });
 
-    document.getElementById('logoutBtn').onclick = () => {
-      currentUser = null;
-      show(views.login);
-    };
+    addUserForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
 
-    document.getElementById('addPatientBtn').onclick = () => {
-      const name = document.getElementById('name').value.trim();
-      const age = document.getElementById('age').value;
-      const gender = document.getElementById('gender').value;
-      const contact = document.getElementById('contact').value.trim();
-      const condition = document.getElementById('condition').value.trim();
-      if(name && age && gender && contact && condition){
-        patients.push({name, age, gender, contact, condition, notes: []});
-        savePatients();
-        renderMain();
-        clearPatientForm();
-      } else {
-        alert('Please fill all fields');
-      }
-    };
-
-    function clearPatientForm(){
-      ['name','age','gender','contact','condition'].forEach(id => document.getElementById(id).value = '');
-    }
-
-    function renderMain(){
-      const tbody = document.querySelector('#patientTable tbody');
-      tbody.innerHTML = '';
-      patients.forEach((patient, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><a href="#" class="patient-name" data-index="${i}">${patient.name}</a></td>
-          <td>${patient.age}</td>
-          <td>${patient.gender}</td>
-          <td>${patient.contact}</td>
-          <td>${patient.condition}</td>
-          <td>
-            <button class="export" data-index="${i}">Export</button>
-            <button class="delete" data-index="${i}">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      // Patient name links
-      document.querySelectorAll('.patient-name').forEach(link => {
-        link.onclick = (e) => {
-          e.preventDefault();
-          viewPatient(link.dataset.index);
-        };
-      });
-
-      // Delete buttons
-      document.querySelectorAll('.delete').forEach(btn => {
-        btn.onclick = () => {
-          if(confirm('Are you sure you want to delete this patient?')){
-            patients.splice(btn.dataset.index, 1);
-            savePatients();
-            renderMain();
-          }
-        };
-      });
-
-      // Export buttons
-      document.querySelectorAll('.export').forEach(btn => {
-        btn.onclick = () => exportPatient(btn.dataset.index);
-      });
-
-      // Show admin panel only if user is admin
-      document.getElementById('adminPanel').style.display = currentUser.isAdmin ? 'block' : 'none';
-
-      renderUsers();
-    }
-
-    function renderUsers(){
-      const tbody = document.querySelector('#userTable tbody');
-      tbody.innerHTML = '';
-      users.forEach((user, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${user.username}</td>
-          <td>${user.isAdmin ? 'Admin' : 'User'}</td>
-          <td>${user.isAdmin ? '' : `<button class="deleteUser" data-index="${i}">Delete</button>`}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.querySelectorAll('.deleteUser').forEach(btn => {
-        btn.onclick = () => {
-          if(confirm(`Delete user ${users[btn.dataset.index].username}?`)){
-            users.splice(btn.dataset.index, 1);
-            localStorage.setItem('users', JSON.stringify(users));
-            renderUsers();
-          }
-        };
-      });
-    }
-
-    document.getElementById('addUserBtn').onclick = () => {
-      const newUsername = document.getElementById('newUsername').value.trim();
-      const newPassword = document.getElementById('newPassword').value;
-      if(!newUsername || !newPassword){
-        alert('Please enter username and password');
+      if (users.some(u => u.username === username)) {
+        alert("User already exists.");
         return;
       }
-      if(users.some(u => u.username === newUsername)){
-        alert('Username already exists');
-        return;
-      }
-      users.push({username: newUsername, password: newPassword, isAdmin: false});
+
+      users.push({ username, password, isAdmin: false });
       localStorage.setItem('users', JSON.stringify(users));
       renderUsers();
-      document.getElementById('newUsername').value = '';
-      document.getElementById('newPassword').value = '';
-    };
+      addUserForm.reset();
+    });
 
-    let currentPatient = null;
+    function renderUsers() {
+      const userTableBody = document.querySelector('#userTable tbody');
+      userTableBody.innerHTML = '';
 
-    function viewPatient(index){
-      currentPatient = patients[index];
-      document.getElementById('patientName').textContent = currentPatient.name;
-      document.getElementById('patientAge').textContent = currentPatient.age;
-      document.getElementById('patientGender').textContent = currentPatient.gender;
-      document.getElementById('patientContact').textContent = currentPatient.contact;
-      document.getElementById('patientCondition').textContent = currentPatient.condition;
-      renderNotes();
-      show(views.patient);
-    }
-
-    document.getElementById('backBtn').onclick = () => {
-      show(views.main);
-    };
-
-    function renderNotes(){
-      const ul = document.getElementById('notesList');
-      ul.innerHTML = '';
-      currentPatient.notes.forEach(note => {
-        const li = document.createElement('li');
-        li.textContent = note;
-        li.style.background = '#f0f4f5';
-        li.style.padding = '10px';
-        li.style.marginBottom = '10px';
-        li.style.borderRadius = '5px';
-        ul.appendChild(li);
+      users.forEach((user, index) => {
+        const tr = document.createElement('tr');
+        const disableEdit = user.isAdmin ? 'disabled' : '';
+        tr.innerHTML = `
+          <td><input type="text" value="${user.username}" data-index="${index}" class="edit-user" ${disableEdit} style="width:100%"></td>
+          <td>${user.isAdmin ? 'Admin' : 'User'}</td>
+          <td>
+            <button class="save-user-btn" data-index="${index}" ${disableEdit}>Save</button>
+            <button class="delete-user-btn" data-index="${index}" ${disableEdit}>Delete</button>
+          </td>
+        `;
+        userTableBody.appendChild(tr);
       });
     }
 
-    document.getElementById('addEntryBtn').onclick = () => {
-      const note = document.getElementById('entryText').value.trim();
-      if(note){
-        currentPatient.notes.push(note);
-        savePatients();
-        renderNotes();
-        document.getElementById('entryText').value = '';
-      } else {
-        alert('Please enter a note');
-      }
-    };
+    document.querySelector('#userTable').addEventListener('click', (e) => {
+      const target = e.target;
+      const index = Number(target.getAttribute('data-index'));
 
-    function exportPatient(index){
-      const p = patients[index];
-      const content = `**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.length ? p.notes.join('\n') : 'None'}`;
-      const blob = new Blob([content], {type: 'text/plain'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${p.name.replace(/\s+/g, '_')}_record.txt`;
-      a.click();
+      if (target.classList.contains('save-user-btn')) {
+        const newName = document.querySelector(`.edit-user[data-index="${index}"]`).value.trim();
+        if (!newName) {
+          alert("Username cannot be empty.");
+          return;
+        }
+        if (users.some((u, i) => u.username === newName && i !== index)) {
+          alert("Username already taken.");
+          return;
+        }
+        users[index].username = newName;
+        localStorage.setItem('users', JSON.stringify(users));
+        renderUsers();
+      }
+
+      if (target.classList.contains('delete-user-btn')) {
+        if (users[index].isAdmin) {
+          alert("Cannot delete admin.");
+          return;
+        }
+        if (confirm(`Delete user "${users[index].username}"?`)) {
+          users.splice(index, 1);
+          localStorage.setItem('users', JSON.stringify(users));
+          renderUsers();
+        }
+      }
+    });
+
+    function renderPatients() {
+      patientTableBody.innerHTML = '';
+      patients.forEach((patient, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><a href="#" class="patient-name" data-index="${index}">${patient.name}</a></td>
+          <td>${patient.age}</td>
+          <td>${patient.condition}</td>
+          <td>
+            <button class="delete-btn" data-index="${index}">Delete</button>
+            <button class="export-btn" data-index="${index}">Save & Export</button>
+          </td>
+        `;
+        patientTableBody.appendChild(row);
+      });
+      localStorage.setItem('patients', JSON.stringify(patients));
     }
 
-    function savePatients(){
+    addPatientForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const age = document.getElementById('age').value;
+      const condition = document.getElementById('condition').value.trim();
+
+      if (name && age && condition) {
+        patients.push({ name, age, condition, notes: [] });
+        saveAndRender();
+        addPatientForm.reset();
+      }
+    });
+
+    patientTableBody.addEventListener('click', e => {
+      const target = e.target;
+      if (target.classList.contains('patient-name')) {
+        e.preventDefault();
+        const index = target.getAttribute('data-index');
+        viewPatient(Number(index));
+      }
+      if (target.classList.contains('delete-btn')) {
+        const index = target.getAttribute('data-index');
+        deletePatient(Number(index));
+      }
+      if (target.classList.contains('export-btn')) {
+        const index = target.getAttribute('data-index');
+        saveAndExportPatient(Number(index));
+      }
+    });
+
+    function viewPatient(index) {
+      currentPatientIndex = index;
+      const patient = patients[index];
+      document.getElementById('patientName').textContent = patient.name;
+      document.getElementById('patientAge').textContent = patient.age;
+      document.getElementById('patientCondition').textContent = patient.condition;
+      renderNotes();
+      mainView.style.display = 'none';
+      patientView.style.display = 'block';
+    }
+
+    backBtn.addEventListener('click', () => {
+      mainView.style.display = 'block';
+      patientView.style.display = 'none';
+      currentPatientIndex = null;
+    });
+
+    backBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        backBtn.click();
+      }
+    });
+
+    addEntryForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = entryText.value.trim();
+      if (!text) return;
+      patients[currentPatientIndex].notes.push(text);
+      saveAndRender();
+      entryText.value = '';
+      renderNotes();
+    });
+
+    function renderNotes() {
+      notesList.innerHTML = '';
+      const notes = patients[currentPatientIndex].notes || [];
+      notes.forEach((note, i) => {
+        const li = document.createElement('li');
+        li.textContent = note;
+        notesList.appendChild(li);
+      });
+    }
+
+    function deletePatient(index) {
+      if (confirm(`Delete patient "${patients[index].name}"?`)) {
+        patients.splice(index, 1);
+        saveAndRender();
+      }
+    }
+
+    function saveAndRender() {
       localStorage.setItem('patients', JSON.stringify(patients));
+      renderPatients();
+      if (currentPatientIndex !== null) renderNotes();
+    }
+
+    function saveAndExportPatient(index) {
+      const patient = patients[index];
+      const dataStr = `Patient: ${patient.name}\nAge: ${patient.age}\nCondition: ${patient.condition}\n\nNotes:\n${patient.notes.join('\n- ')}`;
+      const blob = new Blob([dataStr], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${patient.name.replace(/\s+/g, '_')}_record.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert("Patient record saved and exported.");
     }
   </script>
 </body>
