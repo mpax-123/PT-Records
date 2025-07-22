@@ -152,6 +152,7 @@
     </form>
   </div>
 
+  <!-- Main Application View -->
   <div class="container" id="mainView" style="display: none;">
     <h1>Patient Management System</h1>
     <form id="addPatientForm">
@@ -200,7 +201,17 @@
       <input type="password" id="newPassword" placeholder="New Password" required />
       <button type="submit">Add User</button>
     </form>
-    <ul id="userList"></ul>
+
+    <table id="userTable" style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
   <script>
@@ -222,9 +233,7 @@
     const notesList = document.getElementById('notesList');
     const backBtn = document.getElementById('backBtn');
     const addUserForm = document.getElementById('addUserForm');
-    const userList = document.getElementById('userList');
 
-    // Login handler
     document.getElementById('loginForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const username = document.getElementById('loginUsername').value.trim();
@@ -239,12 +248,12 @@
           adminPanel.style.display = 'block';
           renderUsers();
         }
+        renderPatients();
       } else {
         alert("Invalid username or password.");
       }
     });
 
-    // Add new user (admin)
     addUserForm.addEventListener('submit', e => {
       e.preventDefault();
       const username = document.getElementById('newUsername').value.trim();
@@ -262,13 +271,55 @@
     });
 
     function renderUsers() {
-      userList.innerHTML = '';
-      users.forEach(user => {
-        const li = document.createElement('li');
-        li.textContent = user.username + (user.isAdmin ? " (admin)" : "");
-        userList.appendChild(li);
+      const userTableBody = document.querySelector('#userTable tbody');
+      userTableBody.innerHTML = '';
+
+      users.forEach((user, index) => {
+        const tr = document.createElement('tr');
+        const disableEdit = user.isAdmin ? 'disabled' : '';
+        tr.innerHTML = `
+          <td><input type="text" value="${user.username}" data-index="${index}" class="edit-user" ${disableEdit} style="width:100%"></td>
+          <td>${user.isAdmin ? 'Admin' : 'User'}</td>
+          <td>
+            <button class="save-user-btn" data-index="${index}" ${disableEdit}>Save</button>
+            <button class="delete-user-btn" data-index="${index}" ${disableEdit}>Delete</button>
+          </td>
+        `;
+        userTableBody.appendChild(tr);
       });
     }
+
+    document.querySelector('#userTable').addEventListener('click', (e) => {
+      const target = e.target;
+      const index = Number(target.getAttribute('data-index'));
+
+      if (target.classList.contains('save-user-btn')) {
+        const newName = document.querySelector(`.edit-user[data-index="${index}"]`).value.trim();
+        if (!newName) {
+          alert("Username cannot be empty.");
+          return;
+        }
+        if (users.some((u, i) => u.username === newName && i !== index)) {
+          alert("Username already taken.");
+          return;
+        }
+        users[index].username = newName;
+        localStorage.setItem('users', JSON.stringify(users));
+        renderUsers();
+      }
+
+      if (target.classList.contains('delete-user-btn')) {
+        if (users[index].isAdmin) {
+          alert("Cannot delete admin.");
+          return;
+        }
+        if (confirm(`Delete user "${users[index].username}"?`)) {
+          users.splice(index, 1);
+          localStorage.setItem('users', JSON.stringify(users));
+          renderUsers();
+        }
+      }
+    });
 
     function renderPatients() {
       patientTableBody.innerHTML = '';
@@ -281,7 +332,8 @@
           <td>
             <button class="delete-btn" data-index="${index}">Delete</button>
             <button class="export-btn" data-index="${index}">Save & Export</button>
-          </td>`;
+          </td>
+        `;
         patientTableBody.appendChild(row);
       });
       localStorage.setItem('patients', JSON.stringify(patients));
@@ -302,18 +354,15 @@
 
     patientTableBody.addEventListener('click', e => {
       const target = e.target;
-
       if (target.classList.contains('patient-name')) {
         e.preventDefault();
         const index = target.getAttribute('data-index');
         viewPatient(Number(index));
       }
-
       if (target.classList.contains('delete-btn')) {
         const index = target.getAttribute('data-index');
         deletePatient(Number(index));
       }
-
       if (target.classList.contains('export-btn')) {
         const index = target.getAttribute('data-index');
         saveAndExportPatient(Number(index));
@@ -360,8 +409,11 @@
     });
 
     function deletePatient(index) {
-      if (confirm(`Delete patient "${patients[index].name}"? This action cannot be undone.`)) {
-        if (currentPatientIndex === index) goBack();
+      if (confirm(`Delete patient "${patients[index].name}"?`)) {
+        if (currentPatientIndex === index) {
+          patientView.style.display = 'none';
+          mainView.style.display = 'block';
+        }
         patients.splice(index, 1);
         saveAndRender();
       }
@@ -370,41 +422,22 @@
     function saveAndExportPatient(index) {
       const patient = patients[index];
       const patientData = {
-        content: `New Patient Record:
-**Name**: ${patient.name}
-**Age**: ${patient.age}
-**Condition**: ${patient.condition}
-
-**Notes**: 
-${patient.notes.length > 0 ? patient.notes.join('\n') : 'No notes available.'}`
+        content: `New Patient Record:\n**Name**: ${patient.name}\n**Age**: ${patient.age}\n**Condition**: ${patient.condition}\n\n**Notes**:\n${patient.notes.length ? patient.notes.join('\n') : 'No notes available.'}`
       };
-
       fetch('https://discord.com/api/webhooks/1396950794959589426/gLcOXOw22RnywXltDJCLCwtFoKYdlNRqdd2MdemcFHo-PHYdlssLhg7bulA9aTAUZROd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patientData)
       })
-      .then(response => response.json())
-      .then(data => {
-        alert('Patient data exported to Discord!');
-      })
-      .catch(error => {
-        console.error('Error exporting data:', error);
-      });
+        .then(response => response.json())
+        .then(() => alert('Patient data exported to Discord!'))
+        .catch(error => console.error('Error exporting data:', error));
     }
 
     function saveAndRender() {
       localStorage.setItem('patients', JSON.stringify(patients));
       renderPatients();
     }
-
-    // Initial state: show login screen
-    mainView.style.display = 'none';
-    patientView.style.display = 'none';
-    loginView.style.display = 'block';
-    adminPanel.style.display = 'none';
-
-    renderPatients();
   </script>
 </body>
 </html>
