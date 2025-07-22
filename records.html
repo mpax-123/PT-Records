@@ -141,68 +141,139 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Main View -->
-    <div id="mainView">
-      <h1>Patient Management System</h1>
-      <form id="addPatientForm">
-        <input type="text" id="name" placeholder="Patient Name" required />
-        <input type="number" id="age" placeholder="Age" required min="0" />
-        <textarea id="condition" placeholder="Medical Condition" required></textarea>
-        <button type="submit">Add Patient</button>
-      </form>
 
-      <h2>Patient List</h2>
-      <table id="patientTable">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Age</th>
-            <th>Condition</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+  <!-- Login View -->
+  <div class="container" id="loginView">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <input type="text" id="loginUsername" placeholder="Username" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+  </div>
 
-    <!-- Patient Detail View -->
-    <div id="patientView" style="display: none;">
-      <span class="back-button" id="backBtn">← Back to list</span>
-      <h2 id="patientName"></h2>
-      <p><strong>Age:</strong> <span id="patientAge"></span></p>
-      <p><strong>Condition:</strong> <span id="patientCondition"></span></p>
+  <div class="container" id="mainView" style="display: none;">
+    <h1>Patient Management System</h1>
+    <form id="addPatientForm">
+      <input type="text" id="name" placeholder="Patient Name" required />
+      <input type="number" id="age" placeholder="Age" required min="0" />
+      <textarea id="condition" placeholder="Medical Condition" required></textarea>
+      <button type="submit">Add Patient</button>
+    </form>
 
-      <h3>Add Entry / Note</h3>
-      <form id="addEntryForm">
-        <textarea id="entryText" placeholder="Write a note..." required></textarea>
-        <button type="submit">Add Entry</button>
-      </form>
+    <h2>Patient List</h2>
+    <table id="patientTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Condition</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-      <h3>Patient Notes</h3>
-      <ul class="notes" id="notesList"></ul>
-    </div>
+  <!-- Patient Detail View -->
+  <div class="container" id="patientView" style="display: none;">
+    <span class="back-button" id="backBtn">← Back to list</span>
+    <h2 id="patientName"></h2>
+    <p><strong>Age:</strong> <span id="patientAge"></span></p>
+    <p><strong>Condition:</strong> <span id="patientCondition"></span></p>
+
+    <h3>Add Entry / Note</h3>
+    <form id="addEntryForm">
+      <textarea id="entryText" placeholder="Write a note..." required></textarea>
+      <button type="submit">Add Entry</button>
+    </form>
+
+    <h3>Patient Notes</h3>
+    <ul class="notes" id="notesList"></ul>
+  </div>
+
+  <!-- Admin User Management -->
+  <div class="container" id="adminPanel" style="display: none;">
+    <h2>User Management (Admin Only)</h2>
+    <form id="addUserForm">
+      <input type="text" id="newUsername" placeholder="New Username" required />
+      <input type="password" id="newPassword" placeholder="New Password" required />
+      <button type="submit">Add User</button>
+    </form>
+    <ul id="userList"></ul>
   </div>
 
   <script>
+    let users = JSON.parse(localStorage.getItem('users')) || [
+      { username: "charlotte fletcher", password: "HiLLonden1!!", isAdmin: true }
+    ];
+    let currentUser = null;
     let patients = JSON.parse(localStorage.getItem('patients')) || [];
     let currentPatientIndex = null;
 
+    const loginView = document.getElementById('loginView');
+    const mainView = document.getElementById('mainView');
+    const patientView = document.getElementById('patientView');
+    const adminPanel = document.getElementById('adminPanel');
     const patientTableBody = document.querySelector('#patientTable tbody');
     const addPatientForm = document.getElementById('addPatientForm');
     const addEntryForm = document.getElementById('addEntryForm');
     const entryText = document.getElementById('entryText');
     const notesList = document.getElementById('notesList');
-
-    const mainView = document.getElementById('mainView');
-    const patientView = document.getElementById('patientView');
     const backBtn = document.getElementById('backBtn');
+    const addUserForm = document.getElementById('addUserForm');
+    const userList = document.getElementById('userList');
+
+    // Login handler
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const user = users.find(u => u.username === username && u.password === password);
+
+      if (user) {
+        currentUser = user;
+        loginView.style.display = 'none';
+        mainView.style.display = 'block';
+        if (user.isAdmin) {
+          adminPanel.style.display = 'block';
+          renderUsers();
+        }
+      } else {
+        alert("Invalid username or password.");
+      }
+    });
+
+    // Add new user (admin)
+    addUserForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+
+      if (users.some(u => u.username === username)) {
+        alert("User already exists.");
+        return;
+      }
+
+      users.push({ username, password, isAdmin: false });
+      localStorage.setItem('users', JSON.stringify(users));
+      renderUsers();
+      addUserForm.reset();
+    });
+
+    function renderUsers() {
+      userList.innerHTML = '';
+      users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = user.username + (user.isAdmin ? " (admin)" : "");
+        userList.appendChild(li);
+      });
+    }
 
     function renderPatients() {
       patientTableBody.innerHTML = '';
       patients.forEach((patient, index) => {
         const row = document.createElement('tr');
-
         row.innerHTML = `
           <td><a href="#" class="patient-name" data-index="${index}">${patient.name}</a></td>
           <td>${patient.age}</td>
@@ -210,14 +281,12 @@
           <td>
             <button class="delete-btn" data-index="${index}">Delete</button>
             <button class="export-btn" data-index="${index}">Save & Export</button>
-          </td>
-        `;
+          </td>`;
         patientTableBody.appendChild(row);
       });
       localStorage.setItem('patients', JSON.stringify(patients));
     }
 
-    // Add new patient
     addPatientForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = document.getElementById('name').value.trim();
@@ -231,7 +300,6 @@
       }
     });
 
-    // Event delegation for patient name click, delete button, and export button
     patientTableBody.addEventListener('click', e => {
       const target = e.target;
 
@@ -252,7 +320,6 @@
       }
     });
 
-    // View patient detail
     function viewPatient(index) {
       currentPatientIndex = index;
       const patient = patients[index];
@@ -264,18 +331,12 @@
       patientView.style.display = 'block';
     }
 
-    // Back button handler
     backBtn.addEventListener('click', () => {
-      goBack();
-    });
-
-    function goBack() {
       mainView.style.display = 'block';
       patientView.style.display = 'none';
       currentPatientIndex = null;
-    }
+    });
 
-    // Render patient notes
     function renderNotes() {
       notesList.innerHTML = '';
       if (currentPatientIndex === null) return;
@@ -287,7 +348,6 @@
       });
     }
 
-    // Add note for patient
     addEntryForm.addEventListener('submit', e => {
       e.preventDefault();
       const note = entryText.value.trim();
@@ -299,18 +359,14 @@
       }
     });
 
-    // Delete patient
     function deletePatient(index) {
       if (confirm(`Delete patient "${patients[index].name}"? This action cannot be undone.`)) {
-        if (currentPatientIndex === index) {
-          goBack();
-        }
+        if (currentPatientIndex === index) goBack();
         patients.splice(index, 1);
         saveAndRender();
       }
     }
 
-    // Save and export patient to Discord webhook
     function saveAndExportPatient(index) {
       const patient = patients[index];
       const patientData = {
@@ -325,9 +381,7 @@ ${patient.notes.length > 0 ? patient.notes.join('\n') : 'No notes available.'}`
 
       fetch('https://discord.com/api/webhooks/1396950794959589426/gLcOXOw22RnywXltDJCLCwtFoKYdlNRqdd2MdemcFHo-PHYdlssLhg7bulA9aTAUZROd', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patientData)
       })
       .then(response => response.json())
@@ -344,7 +398,12 @@ ${patient.notes.length > 0 ? patient.notes.join('\n') : 'No notes available.'}`
       renderPatients();
     }
 
-    // Initial render
+    // Initial state: show login screen
+    mainView.style.display = 'none';
+    patientView.style.display = 'none';
+    loginView.style.display = 'block';
+    adminPanel.style.display = 'none';
+
     renderPatients();
   </script>
 </body>
