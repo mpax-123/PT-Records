@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NHS Style Patient EPR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* NHS-inspired styling */
+    body { margin:0; font-family: Arial, sans-serif; background:#f0f4f5; color:#0b0c0c; padding:20px; }
+    .container { max-width:960px; margin:0 auto 40px; background:white; padding:30px; border-left:8px solid #005eb8; }
+    h1,h2,h3{margin-top:0;}
+    label{display:block; font-weight:bold; margin-bottom:4px;}
+    input,textarea,select{width:100%; padding:10px; font-size:16px; border:1px solid #0b0c0c; border-radius:4px; box-sizing:border-box; margin-bottom:10px;}
+    button{background:#005eb8;color:#fff;border:none;padding:10px 20px;font-size:16px;cursor:pointer;border-radius:4px;}
+    button:hover{background:#003f7d;}
+    table{width:100%; border-collapse:collapse; margin-bottom:20px;}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #dfe3e6;}
+    tr:hover{background:#f5f7fa;}
+    a.patient-name{color:#005eb8;text-decoration:none;}
+    a.patient-name:hover{text-decoration:underline;}
+    .view{display:none;}
+    .active{display:block;}
+    .back-button{color:#005eb8;cursor:pointer;display:inline-block;margin-bottom:20px;}
+    .admin-panel{margin-top:30px;}
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div class="container view active" id="loginView">
+    <h1>NHS Patient Records – Sign In</h1>
+    <label for="loginUsername">Username</label>
+    <input id="loginUsername" type="text" required />
+    <label for="loginPassword">Password</label>
+    <input id="loginPassword" type="password" required />
+    <button id="loginBtn">Sign in</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="container view" id="mainView">
+    <button id="logoutBtn" style="float:right;background:#c82333;">Logout</button>
+    <h1>Patient Records</h1>
+
+    <h2>Add New Patient</h2>
+    <label for="name">Name</label><input id="name" type="text" required />
+    <label for="age">Age</label><input id="age" type="number" min="0" required />
+    <label for="gender">Gender</label><select id="gender" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+    <label for="contact">Contact (phone/email)</label><input id="contact" type="text" required />
+    <label for="condition">Medical Condition</label><textarea id="condition" rows="2" required></textarea>
+    <button id="addPatientBtn">Add Patient</button>
+
+    <h2>Patient List</h2>
+    <table id="patientTable">
+      <thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Contact</th><th>Condition</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="admin-panel" id="adminPanel">
+      <h2>User Management (Admin)</h2>
+      <label for="newUsername">New Username</label><input id="newUsername" type="text" required />
+      <label for="newPassword">New Password</label><input id="newPassword" type="password" required />
+      <button id="addUserBtn">Add User</button>
+
+      <h3>Existing Users</h3>
+      <table id="userTable"><thead><tr><th>Username</th><th>Role</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- PATIENT DETAILS -->
+  <div class="container view" id="patientView">
+    <span class="back-button" id="backBtn">← Back to list</span>
+    <h1 id="patientName"></h1>
+    <p><strong>Age:</strong> <span id="patientAge"></span></p>
+    <p><strong>Gender:</strong> <span id="patientGender"></span></p>
+    <p><strong>Contact:</strong> <span id="patientContact"></span></p>
+    <p><strong>Condition:</strong> <span id="patientCondition"></span></p>
+
+    <h2>Add Note</h2>
+    <textarea id="entryText" rows="4" required></textarea>
+    <button id="addEntryBtn">Save Note</button>
+
+    <h2>Notes</h2>
+    <ul id="notesList" style="padding-left:0;"></ul>
+  </div>
+
+  <script>
+    // simple SHA-256 hashing for localStorage (uses Web Crypto)
+    async function hash(pwd){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+
+    let users = JSON.parse(localStorage.getItem('users')) || [{username:'admin',password:'',isAdmin:true}];
+    (async ()=>{
+      if(!users[0].password){users[0].password = await hash('admin123');localStorage.setItem('users', JSON.stringify(users));}
+    })();
+    let currentUser = null, patients = JSON.parse(localStorage.getItem('patients')) || [];
+
+    const views = {login: document.getElementById('loginView'), main:document.getElementById('mainView'), patient:document.getElementById('patientView')};
+    function show(v){Object.values(views).forEach(el=>el.classList.remove('active'));v.classList.add('active');}
+
+    document.getElementById('loginBtn').onclick = async ()=>{
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value;
+      const hp = await hash(p);
+      const found = users.find(uobj=>uobj.username===u && uobj.password===hp);
+      if(found){currentUser = found; renderMain(); show(views.main);} else alert('Invalid login');
+    };
+
+    document.getElementById('logoutBtn').onclick = ()=>{currentUser=null; show(views.login);};
+
+    document.getElementById('addPatientBtn').onclick = ()=>{
+      const name=document.getElementById('name').value.trim(), age=document.getElementById('age').value, gender=document.getElementById('gender').value, contact=document.getElementById('contact').value.trim(), cond=document.getElementById('condition').value.trim();
+      if(name && age && gender && contact && cond){patients.push({name,age,gender,contact,condition:cond,notes:[]}); save(); renderMain(); clearPatientForm();}
+    };
+
+    function clearPatientForm(){['name','age','gender','contact','condition'].forEach(id=>document.getElementById(id).value='');}
+
+    function renderMain(){
+      const tbody = document.querySelector('#patientTable tbody');
+      tbody.innerHTML='';
+      patients.forEach((pt,i)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><a href="#" class="patient-name" data-i="${i}">${pt.name}</a></td><td>${pt.age}</td><td>${pt.gender}</td><td>${pt.contact}</td><td>${pt.condition}</td><td><button class="export" data-i="${i}">Export</button> <button class="delete" data-i="${i}">Delete</button></td>`;
+        tbody.appendChild(tr);
+      });
+      document.querySelectorAll('.patient-name').forEach(a=>a.onclick=e=>{
+        e.preventDefault(); viewPatient(a.dataset.i);
+      });
+      document.querySelectorAll('.delete').forEach(b=>b.onclick=e=>{
+        if(confirm('Delete?')){patients.splice(b.dataset.i,1); save(); renderMain();}
+      });
+      document.querySelectorAll('.export').forEach(b=>b.onclick=_=>exportPatient(b.dataset.i));
+      renderUsers();
+      document.getElementById('adminPanel').style.display = currentUser.isAdmin ? 'block' : 'none';
+    }
+
+    async function renderUsers(){
+      const ut=document.querySelector('#userTable tbody'); ut.innerHTML='';
+      users.forEach((u,i)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${u.username}</td><td>${u.isAdmin?'Admin':'User'}</td><td>${i===0?'-':'<button data-i="'+i+'" class="delUser">Delete</button>'}</td>`;
+        ut.appendChild(tr);
+      });
+      document.querySelectorAll('.delUser').forEach(btn=>btn.onclick=e=>{
+        if(confirm('Delete user?')){users.splice(btn.dataset.i,1); save(); renderUsers();}
+      });
+    }
+
+    document.getElementById('addUserBtn').onclick = async ()=>{
+      const u=document.getElementById('newUsername').value.trim(), p=document.getElementById('newPassword').value;
+      if(u && p && !users.some(x=>x.username===u)){users.push({username:u,password:await hash(p),isAdmin:false}); save(); renderUsers(); document.getElementById('newUsername').value=''; document.getElementById('newPassword').value='';}
+      else alert('Invalid or duplicate user');
+    };
+
+    function save(){localStorage.setItem('patients',JSON.stringify(patients));localStorage.setItem('users',JSON.stringify(users));}
+
+    function viewPatient(i){
+      const p=patients[i]; document.getElementById('patientName').textContent=p.name;
+      ['Age','Gender','Contact','Condition'].forEach(field=>document.getElementById('patient'+field).textContent=p[field.toLowerCase()]);
+      const nl=document.getElementById('notesList'); nl.innerHTML=''; p.notes.forEach(n=>{
+        const li=document.createElement('li'); li.textContent=n; nl.appendChild(li);
+      });
+      document.getElementById('addEntryBtn').onclick = ()=>{
+        const txt=document.getElementById('entryText').value.trim(); if(txt){p.notes.push(txt); save(); viewPatient(i); document.getElementById('entryText').value='';}
+      };
+      show(views.patient);
+    }
+
+    document.getElementById('backBtn').onclick = ()=>show(views.main);
+
+    async function exportPatient(i){
+      const p=patients[i];
+      const payload = { content:`**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.join('\n') || 'No notes'}`};
+      try{await fetch('https://discord.com/api/webhooks/...', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); alert('Exported');}
+      catch(err){console.error(err);alert('Error')};
+    }
+  </script>
+</body>
+</html>
