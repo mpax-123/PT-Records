@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>NHS Style Patient EPR</title>
+  <title>NHS EPR System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* NHS-inspired styling */
     body { margin:0; font-family: Arial, sans-serif; background:#f0f4f5; color:#0b0c0c; padding:20px; }
     .container { max-width:960px; margin:0 auto 40px; background:white; padding:30px; border-left:8px solid #005eb8; }
     h1,h2,h3{margin-top:0;}
@@ -25,7 +24,6 @@
   </style>
 </head>
 <body>
-  <!-- LOGIN -->
   <div class="container view active" id="loginView">
     <h1>NHS Patient Records – Sign In</h1>
     <label for="loginUsername">Username</label>
@@ -35,7 +33,6 @@
     <button id="loginBtn">Sign in</button>
   </div>
 
-  <!-- MAIN -->
   <div class="container view" id="mainView">
     <button id="logoutBtn" style="float:right;background:#c82333;">Logout</button>
     <h1>Patient Records</h1>
@@ -65,7 +62,6 @@
     </div>
   </div>
 
-  <!-- PATIENT DETAILS -->
   <div class="container view" id="patientView">
     <span class="back-button" id="backBtn">← Back to list</span>
     <h1 id="patientName"></h1>
@@ -83,13 +79,18 @@
   </div>
 
   <script>
-    // simple SHA-256 hashing for localStorage (uses Web Crypto)
     async function hash(pwd){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 
-    let users = JSON.parse(localStorage.getItem('users')) || [{username:'admin',password:'',isAdmin:true}];
-    (async ()=>{
-      if(!users[0].password){users[0].password = await hash('admin123');localStorage.setItem('users', JSON.stringify(users));}
+    let users = JSON.parse(localStorage.getItem('users')) || [];
+
+    (async () => {
+      if (!users.length) {
+        const hashed = await hash('HiLLonden1!!');
+        users = [{ username: 'CF', password: hashed, isAdmin: true }];
+        localStorage.setItem('users', JSON.stringify(users));
+      }
     })();
+
     let currentUser = null, patients = JSON.parse(localStorage.getItem('patients')) || [];
 
     const views = {login: document.getElementById('loginView'), main:document.getElementById('mainView'), patient:document.getElementById('patientView')};
@@ -135,41 +136,68 @@
       const ut=document.querySelector('#userTable tbody'); ut.innerHTML='';
       users.forEach((u,i)=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${u.username}</td><td>${u.isAdmin?'Admin':'User'}</td><td>${i===0?'-':'<button data-i="'+i+'" class="delUser">Delete</button>'}</td>`;
+        tr.innerHTML=`<td>${u.username}</td><td>${u.isAdmin?'Admin':'User'}</td><td>${u.isAdmin?'':'<button class="delUser" data-i="'+i+'">Delete</button>'}</td>`;
         ut.appendChild(tr);
       });
-      document.querySelectorAll('.delUser').forEach(btn=>btn.onclick=e=>{
-        if(confirm('Delete user?')){users.splice(btn.dataset.i,1); save(); renderUsers();}
+      document.querySelectorAll('.delUser').forEach(btn=>btn.onclick=_=>{
+        const i=btn.dataset.i;
+        if(confirm(`Delete user ${users[i].username}?`)){users.splice(i,1); localStorage.setItem('users',JSON.stringify(users)); renderUsers();}
       });
     }
 
     document.getElementById('addUserBtn').onclick = async ()=>{
-      const u=document.getElementById('newUsername').value.trim(), p=document.getElementById('newPassword').value;
-      if(u && p && !users.some(x=>x.username===u)){users.push({username:u,password:await hash(p),isAdmin:false}); save(); renderUsers(); document.getElementById('newUsername').value=''; document.getElementById('newPassword').value='';}
-      else alert('Invalid or duplicate user');
+      const u = document.getElementById('newUsername').value.trim(), p = document.getElementById('newPassword').value;
+      if(!u || !p || users.some(x=>x.username===u)) return alert('Invalid or duplicate username');
+      const hp = await hash(p);
+      users.push({username:u,password:hp,isAdmin:false});
+      localStorage.setItem('users', JSON.stringify(users));
+      renderUsers();
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPassword').value = '';
     };
 
-    function save(){localStorage.setItem('patients',JSON.stringify(patients));localStorage.setItem('users',JSON.stringify(users));}
-
+    let currentPatient = null;
     function viewPatient(i){
-      const p=patients[i]; document.getElementById('patientName').textContent=p.name;
-      ['Age','Gender','Contact','Condition'].forEach(field=>document.getElementById('patient'+field).textContent=p[field.toLowerCase()]);
-      const nl=document.getElementById('notesList'); nl.innerHTML=''; p.notes.forEach(n=>{
-        const li=document.createElement('li'); li.textContent=n; nl.appendChild(li);
-      });
-      document.getElementById('addEntryBtn').onclick = ()=>{
-        const txt=document.getElementById('entryText').value.trim(); if(txt){p.notes.push(txt); save(); viewPatient(i); document.getElementById('entryText').value='';}
-      };
+      currentPatient = patients[i];
+      document.getElementById('patientName').textContent = currentPatient.name;
+      document.getElementById('patientAge').textContent = currentPatient.age;
+      document.getElementById('patientGender').textContent = currentPatient.gender;
+      document.getElementById('patientContact').textContent = currentPatient.contact;
+      document.getElementById('patientCondition').textContent = currentPatient.condition;
+      renderNotes();
       show(views.patient);
     }
 
-    document.getElementById('backBtn').onclick = ()=>show(views.main);
+    document.getElementById('backBtn').onclick=()=>{show(views.main);};
 
-    async function exportPatient(i){
-      const p=patients[i];
-      const payload = { content:`**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.join('\n') || 'No notes'}`};
-      try{await fetch('https://discord.com/api/webhooks/...', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); alert('Exported');}
-      catch(err){console.error(err);alert('Error')};
+    function renderNotes(){
+      const ul=document.getElementById('notesList');
+      ul.innerHTML='';
+      currentPatient.notes.forEach(n=>{
+        const li=document.createElement('li');
+        li.textContent=n;
+        li.style.background='#f0f4f5';li.style.padding='10px';li.style.marginBottom='10px';li.style.borderRadius='5px';
+        ul.appendChild(li);
+      });
+    }
+
+    document.getElementById('addEntryBtn').onclick=()=>{
+      const note = document.getElementById('entryText').value.trim();
+      if(note){currentPatient.notes.push(note); save(); renderNotes(); document.getElementById('entryText').value='';}
+    };
+
+    function exportPatient(i){
+      const p = patients[i];
+      const text = `**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.join('\n') || 'None'}`;
+      const blob = new Blob([text], {type: 'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${p.name.replace(/\s+/g,'_')}_record.txt`;
+      a.click();
+    }
+
+    function save(){
+      localStorage.setItem('patients', JSON.stringify(patients));
     }
   </script>
 </body>
