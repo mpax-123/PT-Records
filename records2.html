@@ -79,77 +79,152 @@
   </div>
 
   <script>
-    async function hash(pwd){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
-
+    // Users storage: password stored in plain text (NOT recommended in real apps)
     let users = JSON.parse(localStorage.getItem('users')) || [];
 
-    (async () => {
-      if (!users.length) {
-        const hashed = await hash('HiLLonden1!!');
-        users = [{ username: 'CF', password: hashed, isAdmin: true }];
-        localStorage.setItem('users', JSON.stringify(users));
+    // Initialize admin user if none exist
+    if(users.length === 0){
+      users = [{ username: 'CF', password: 'HiLLonden1!!', isAdmin: true }];
+      localStorage.setItem('users', JSON.stringify(users));
+    }
+
+    let currentUser = null;
+    let patients = JSON.parse(localStorage.getItem('patients')) || [];
+
+    const views = {
+      login: document.getElementById('loginView'),
+      main: document.getElementById('mainView'),
+      patient: document.getElementById('patientView')
+    };
+
+    function show(view){
+      Object.values(views).forEach(v => v.classList.remove('active'));
+      view.classList.add('active');
+    }
+
+    document.getElementById('loginBtn').onclick = () => {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const user = users.find(u => u.username === username && u.password === password);
+      if(user){
+        currentUser = user;
+        renderMain();
+        show(views.main);
+      } else {
+        alert('Invalid username or password');
       }
-    })();
-
-    let currentUser = null, patients = JSON.parse(localStorage.getItem('patients')) || [];
-
-    const views = {login: document.getElementById('loginView'), main:document.getElementById('mainView'), patient:document.getElementById('patientView')};
-    function show(v){Object.values(views).forEach(el=>el.classList.remove('active'));v.classList.add('active');}
-
-    document.getElementById('loginBtn').onclick = async ()=>{
-      const u = document.getElementById('loginUsername').value.trim();
-      const p = document.getElementById('loginPassword').value;
-      const hp = await hash(p);
-      const found = users.find(uobj=>uobj.username===u && uobj.password===hp);
-      if(found){currentUser = found; renderMain(); show(views.main);} else alert('Invalid login');
     };
 
-    document.getElementById('logoutBtn').onclick = ()=>{currentUser=null; show(views.login);};
-
-    document.getElementById('addPatientBtn').onclick = ()=>{
-      const name=document.getElementById('name').value.trim(), age=document.getElementById('age').value, gender=document.getElementById('gender').value, contact=document.getElementById('contact').value.trim(), cond=document.getElementById('condition').value.trim();
-      if(name && age && gender && contact && cond){patients.push({name,age,gender,contact,condition:cond,notes:[]}); save(); renderMain(); clearPatientForm();}
+    document.getElementById('logoutBtn').onclick = () => {
+      currentUser = null;
+      show(views.login);
     };
 
-    function clearPatientForm(){['name','age','gender','contact','condition'].forEach(id=>document.getElementById(id).value='');}
+    document.getElementById('addPatientBtn').onclick = () => {
+      const name = document.getElementById('name').value.trim();
+      const age = document.getElementById('age').value;
+      const gender = document.getElementById('gender').value;
+      const contact = document.getElementById('contact').value.trim();
+      const condition = document.getElementById('condition').value.trim();
+      if(name && age && gender && contact && condition){
+        patients.push({name, age, gender, contact, condition, notes: []});
+        savePatients();
+        renderMain();
+        clearPatientForm();
+      } else {
+        alert('Please fill all fields');
+      }
+    };
+
+    function clearPatientForm(){
+      ['name','age','gender','contact','condition'].forEach(id => document.getElementById(id).value = '');
+    }
 
     function renderMain(){
       const tbody = document.querySelector('#patientTable tbody');
-      tbody.innerHTML='';
-      patients.forEach((pt,i)=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td><a href="#" class="patient-name" data-i="${i}">${pt.name}</a></td><td>${pt.age}</td><td>${pt.gender}</td><td>${pt.contact}</td><td>${pt.condition}</td><td><button class="export" data-i="${i}">Export</button> <button class="delete" data-i="${i}">Delete</button></td>`;
+      tbody.innerHTML = '';
+      patients.forEach((patient, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><a href="#" class="patient-name" data-index="${i}">${patient.name}</a></td>
+          <td>${patient.age}</td>
+          <td>${patient.gender}</td>
+          <td>${patient.contact}</td>
+          <td>${patient.condition}</td>
+          <td>
+            <button class="export" data-index="${i}">Export</button>
+            <button class="delete" data-index="${i}">Delete</button>
+          </td>
+        `;
         tbody.appendChild(tr);
       });
-      document.querySelectorAll('.patient-name').forEach(a=>a.onclick=e=>{
-        e.preventDefault(); viewPatient(a.dataset.i);
+
+      // Patient name links
+      document.querySelectorAll('.patient-name').forEach(link => {
+        link.onclick = (e) => {
+          e.preventDefault();
+          viewPatient(link.dataset.index);
+        };
       });
-      document.querySelectorAll('.delete').forEach(b=>b.onclick=e=>{
-        if(confirm('Delete?')){patients.splice(b.dataset.i,1); save(); renderMain();}
+
+      // Delete buttons
+      document.querySelectorAll('.delete').forEach(btn => {
+        btn.onclick = () => {
+          if(confirm('Are you sure you want to delete this patient?')){
+            patients.splice(btn.dataset.index, 1);
+            savePatients();
+            renderMain();
+          }
+        };
       });
-      document.querySelectorAll('.export').forEach(b=>b.onclick=_=>exportPatient(b.dataset.i));
-      renderUsers();
+
+      // Export buttons
+      document.querySelectorAll('.export').forEach(btn => {
+        btn.onclick = () => exportPatient(btn.dataset.index);
+      });
+
+      // Show admin panel only if user is admin
       document.getElementById('adminPanel').style.display = currentUser.isAdmin ? 'block' : 'none';
+
+      renderUsers();
     }
 
-    async function renderUsers(){
-      const ut=document.querySelector('#userTable tbody'); ut.innerHTML='';
-      users.forEach((u,i)=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${u.username}</td><td>${u.isAdmin?'Admin':'User'}</td><td>${u.isAdmin?'':'<button class="delUser" data-i="'+i+'">Delete</button>'}</td>`;
-        ut.appendChild(tr);
+    function renderUsers(){
+      const tbody = document.querySelector('#userTable tbody');
+      tbody.innerHTML = '';
+      users.forEach((user, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.username}</td>
+          <td>${user.isAdmin ? 'Admin' : 'User'}</td>
+          <td>${user.isAdmin ? '' : `<button class="deleteUser" data-index="${i}">Delete</button>`}</td>
+        `;
+        tbody.appendChild(tr);
       });
-      document.querySelectorAll('.delUser').forEach(btn=>btn.onclick=_=>{
-        const i=btn.dataset.i;
-        if(confirm(`Delete user ${users[i].username}?`)){users.splice(i,1); localStorage.setItem('users',JSON.stringify(users)); renderUsers();}
+
+      document.querySelectorAll('.deleteUser').forEach(btn => {
+        btn.onclick = () => {
+          if(confirm(`Delete user ${users[btn.dataset.index].username}?`)){
+            users.splice(btn.dataset.index, 1);
+            localStorage.setItem('users', JSON.stringify(users));
+            renderUsers();
+          }
+        };
       });
     }
 
-    document.getElementById('addUserBtn').onclick = async ()=>{
-      const u = document.getElementById('newUsername').value.trim(), p = document.getElementById('newPassword').value;
-      if(!u || !p || users.some(x=>x.username===u)) return alert('Invalid or duplicate username');
-      const hp = await hash(p);
-      users.push({username:u,password:hp,isAdmin:false});
+    document.getElementById('addUserBtn').onclick = () => {
+      const newUsername = document.getElementById('newUsername').value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+      if(!newUsername || !newPassword){
+        alert('Please enter username and password');
+        return;
+      }
+      if(users.some(u => u.username === newUsername)){
+        alert('Username already exists');
+        return;
+      }
+      users.push({username: newUsername, password: newPassword, isAdmin: false});
       localStorage.setItem('users', JSON.stringify(users));
       renderUsers();
       document.getElementById('newUsername').value = '';
@@ -157,8 +232,9 @@
     };
 
     let currentPatient = null;
-    function viewPatient(i){
-      currentPatient = patients[i];
+
+    function viewPatient(index){
+      currentPatient = patients[index];
       document.getElementById('patientName').textContent = currentPatient.name;
       document.getElementById('patientAge').textContent = currentPatient.age;
       document.getElementById('patientGender').textContent = currentPatient.gender;
@@ -168,35 +244,47 @@
       show(views.patient);
     }
 
-    document.getElementById('backBtn').onclick=()=>{show(views.main);};
+    document.getElementById('backBtn').onclick = () => {
+      show(views.main);
+    };
 
     function renderNotes(){
-      const ul=document.getElementById('notesList');
-      ul.innerHTML='';
-      currentPatient.notes.forEach(n=>{
-        const li=document.createElement('li');
-        li.textContent=n;
-        li.style.background='#f0f4f5';li.style.padding='10px';li.style.marginBottom='10px';li.style.borderRadius='5px';
+      const ul = document.getElementById('notesList');
+      ul.innerHTML = '';
+      currentPatient.notes.forEach(note => {
+        const li = document.createElement('li');
+        li.textContent = note;
+        li.style.background = '#f0f4f5';
+        li.style.padding = '10px';
+        li.style.marginBottom = '10px';
+        li.style.borderRadius = '5px';
         ul.appendChild(li);
       });
     }
 
-    document.getElementById('addEntryBtn').onclick=()=>{
+    document.getElementById('addEntryBtn').onclick = () => {
       const note = document.getElementById('entryText').value.trim();
-      if(note){currentPatient.notes.push(note); save(); renderNotes(); document.getElementById('entryText').value='';}
+      if(note){
+        currentPatient.notes.push(note);
+        savePatients();
+        renderNotes();
+        document.getElementById('entryText').value = '';
+      } else {
+        alert('Please enter a note');
+      }
     };
 
-    function exportPatient(i){
-      const p = patients[i];
-      const text = `**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.join('\n') || 'None'}`;
-      const blob = new Blob([text], {type: 'text/plain'});
+    function exportPatient(index){
+      const p = patients[index];
+      const content = `**Patient Record**\nName: ${p.name}\nAge: ${p.age}\nGender: ${p.gender}\nContact: ${p.contact}\nCondition: ${p.condition}\nNotes:\n${p.notes.length ? p.notes.join('\n') : 'None'}`;
+      const blob = new Blob([content], {type: 'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${p.name.replace(/\s+/g,'_')}_record.txt`;
+      a.download = `${p.name.replace(/\s+/g, '_')}_record.txt`;
       a.click();
     }
 
-    function save(){
+    function savePatients(){
       localStorage.setItem('patients', JSON.stringify(patients));
     }
   </script>
